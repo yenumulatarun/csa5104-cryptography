@@ -1,0 +1,46 @@
+#include <stdio.h>
+#include <math.h>
+
+int modExp(int a, int b, int c) {
+    int result = 1;
+    while (b > 0) {
+        if (b % 2 == 1)
+            result = (result * a) % c;
+        a = (a * a) % c;
+        b = b / 2;
+    }
+    return result;
+}
+
+int main() {
+    int q, alpha, xa, xb;
+
+  
+    printf("Enter a prime number q: ");
+    scanf("%d", &q);
+    printf("Enter a primitive root of %d (alpha): ", q);
+    scanf("%d", &alpha);
+
+   
+    printf("Enter private key for Alice (xa): ");
+    scanf("%d", &xa);
+    printf("Enter private key for Bob (xb): ");
+    scanf("%d", &xb);
+
+    
+    int yA = modExp(alpha, xa, q);
+    int yB = modExp(alpha, xb, q);
+
+   
+    int secretKeyAlice = modExp(yB, xa, q);
+    int secretKeyBob = modExp(yA, xb, q);
+
+   
+    printf("\nPublic Key for Alice (yA): %d\n", yA);
+    printf("Public Key for Bob (yB): %d\n", yB);
+
+    printf("\nShared Secret Key for ka: %d\n", secretKeyAlice);
+    printf("Shared Secret Key for kb: %d\n", secretKeyBob);
+
+    return 0;
+}
