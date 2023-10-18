@@ -1,0 +1,115 @@
+#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+#define LEFTROTATE(x, c) (((x) << (c)) | ((x) >> (32 - (c)))
+
+typedef struct {
+    uint32_t state[4]; // A, B, C, D
+    uint32_t count[2]; // Number of bits, modulo 2^64 (low-order word first)
+    unsigned char buffer[64]; // Input buffer
+} MD5_CTX;
+
+void md5_transform(MD5_CTX *ctx) {
+    uint32_t a = ctx->state[0], b = ctx->state[1], c = ctx->state[2], d = ctx->state[3];
+    uint32_t x[16];
+
+    for (int i = 0; i < 16; ++i)
+        x[i] = *(uint32_t *)&ctx->buffer[i * 4];
+
+    // Round 1
+    for (int i = 0; i < 16; ++i) {
+        uint32_t f = (b & c) | ((~b) & d);
+        uint32_t g = i;
+        uint32_t temp = d;
+        d = c;
+        c = b;
+        b = b + LEFTROTATE((a + f + 0x5A827999 + x[i]), 7));
+        a = temp;
+    }
+
+    ctx->state[0] += a;
+    ctx->state[1] += b;
+    ctx->state[2] += c;
+    ctx->state[3] += d;
+}
+
+void md5_init(MD5_CTX *ctx) {
+    ctx->count[0] = 0;
+    ctx->count[1] = 0;
+    ctx->state[0] = 0x67452301;
+    ctx->state[1] = 0xEFCDAB89;
+    ctx->state[2] = 0x98BADCFE;
+    ctx->state[3] = 0x10325476;
+}
+
+void md5_update(MD5_CTX *ctx, const unsigned char *input, uint32_t input_len) {
+    uint32_t i, index, part_len;
+
+    index = (ctx->count[0] >> 3) & 0x3F;
+    uint32_t bit_len = input_len << 3;
+    ctx->count[0] += bit_len;
+    if (ctx->count[0] < bit_len) {
+        ctx->count[1]++;
+    }
+    ctx->count[1] += (input_len >> 29);
+    part_len = 64 - index;
+
+    if (input_len >= part_len) {
+        memcpy(&ctx->buffer[index], input, part_len);
+        md5_transform(ctx);
+        for (i = part_len; i + 63 < input_len; i += 64)
+            md5_transform(ctx);
+        index = 0;
+    } else {
+        i = 0;
+    }
+
+    memcpy(&ctx->buffer[index], &input[i], input_len - i);
+}
+
+void md5_final(MD5_CTX *ctx, unsigned char digest[16]) {
+    unsigned char bits[8];
+    uint32_t index, pad_len;
+
+    memcpy(bits, ctx->count, 8);
+
+    index = (ctx->count[0] >> 3) & 0x3F;
+    pad_len = (index < 56) ? (56 - index) : (120 - index);
+    md5_update(ctx, (const unsigned char *)"\x80", 1);
+    while (pad_len--)
+        md5_update(ctx, (const unsigned char *)"\x00", 1);
+
+    md5_update(ctx, bits, 8);
+
+    memcpy(digest, ctx->state, 16);
+}
+
+void print_md5_sum(unsigned char *md) {
+    for (int i = 0; i < 16; i++) {
+        printf("%02x", md[i]);
+    }
+    printf("\n");
+}
+
+int main() {
+    char input[1024]; // Assume a maximum input length of 1024 characters
+    unsigned char digest[16];
+    MD5_CTX ctx;
+
+    printf("Enter a string: ");
+    fgets(input, sizeof(input), stdin);
+
+    // Remove the trailing newline character
+    input[strcspn(input, "\n")] = 0;
+
+    md5_init(&ctx);
+    md5_update(&ctx, (unsigned char *)input, strlen(input));
+    md5_final(&ctx, digest);
+
+    printf("Input string: %s\n", input);
+    printf("MD5 hash: ");
+    print_md5_sum(digest);
+
+    return 0;
+}
